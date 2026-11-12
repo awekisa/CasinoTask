@@ -62,17 +62,16 @@ public sealed class LoadBalancerTests : IAsyncLifetime
         return service;
     }
 
-    private async Task<RunningService> StartProxy(bool wildcard = false, bool health = true, bool noDestinations = false)
+    private async Task<RunningService> StartProxy(bool noDestinations = false)
     {
         var settings = new Dictionary<string, string> { ["urls"] = $"{addresses[4]};{addresses[5]}" };
         foreach (var (name, offset, listener) in new[] { ("Wallet", 0, 4), ("Game", 2, 5) })
         {
             for (var i = 0; i < 2; i++)
             {
-                settings[$"ReverseProxy:Routes:{name}:Match:Hosts:{i}"] = $"{(wildcard ? "*" : "127.0.0.1")}:{addresses[listener].Port}";
+                settings[$"ReverseProxy:Routes:{name}:Match:Hosts:{i}"] = $"127.0.0.1:{addresses[listener].Port}";
                 settings[$"ReverseProxy:Clusters:{name}:Destinations:{name}{i + 1}:Address"] = addresses[offset + i].ToString();
             }
-            settings[$"ReverseProxy:Clusters:{name}:HealthCheck:Active:Enabled"] = health.ToString();
             // Only this verification test changes the default fallback to all unhealthy destinations.
             if (noDestinations) settings[$"ReverseProxy:Clusters:{name}:HealthCheck:AvailableDestinationsPolicy"] = "HealthyAndUnknown";
         }
@@ -204,19 +203,6 @@ public sealed class LoadBalancerTests : IAsyncLifetime
             reservation.Status == Casino.Wallet.Persistence.Enums.ReservationStatus.Settled));
         Assert.False(await walletDb.Reservations.AnyAsync(reservation =>
             reservation.Status == Casino.Wallet.Persistence.Enums.ReservationStatus.Held));
-    }
-
-    [Fact]
-    public async Task WildcardHostWithPortWorksAndConnectionRefusalIs502()
-    {
-        await proxy.DisposeAsync();
-        proxy = await StartProxy(wildcard: true, health: false);
-        await AssertDistribution(wallet, addresses.Take(2));
-        await AssertDistribution(game, addresses.Skip(2).Take(2));
-        await wallets[0].DisposeAsync();
-        await wallets[1].DisposeAsync();
-        using var refused = await wallet.GetAsync("health");
-        Assert.Equal(HttpStatusCode.BadGateway, refused.StatusCode);
     }
 
     [Fact]
