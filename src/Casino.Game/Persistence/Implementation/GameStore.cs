@@ -26,22 +26,22 @@ public sealed class GameStore : IGameStore
         PostgresPersistence.Initialize(db);
     }
 
-    private T Write<T>(Func<GameDbContext, T> action)
+    private Task<T> Write<T>(Func<GameDbContext, Task<T>> action, CancellationToken ct)
     {
-        return PostgresPersistence.Write(() => new GameDbContext(connectionString, timeoutSeconds), action, maxTransactionRetries);
+        return PostgresPersistence.Write(() => new GameDbContext(connectionString, timeoutSeconds), action, maxTransactionRetries, ct);
     }
 
     private static Round ToRound(RoundEntity row) => new(Guid.Parse(row.Id), Guid.Parse(row.Player), Guid.Parse(row.Request), row.Stake,
         row.State, row.Payout, row.Result is null ? null : JsonSerializer.Deserialize<Balance>(row.Result), row.Error);
 
-    public Round GetOrCreate(MoneyRequest request)
+    public Task<Round> GetOrCreate(MoneyRequest request, CancellationToken ct = default)
     {
         Money.Id(request.PlayerId);
         Money.Id(request.RequestId);
         var stake = Money.Validate(request.Amount);
-        return Write(db =>
+        return Write(async db =>
         {
-            var round = db.Rounds.SingleOrDefault(r => r.Player == request.PlayerId.ToString() && r.Request == request.RequestId.ToString());
+            var round = await db.Rounds.SingleOrDefaultAsync(r => r.Player == request.PlayerId.ToString() && r.Request == request.RequestId.ToString(), ct);
             if (round is null)
             {
                 round = new RoundEntity { Id = Guid.NewGuid().ToString(), Player = request.PlayerId.ToString(), Request = request.RequestId.ToString(), Stake = stake };
@@ -49,31 +49,33 @@ public sealed class GameStore : IGameStore
             }
             if (round.Stake != stake) throw new DomainException("Request key reused with different bet.", 409);
             return ToRound(round);
-        });
+        }, ct);
     }
 
-    public Round Get(Guid id)
+    public async Task<Round> Get(Guid id, CancellationToken ct = default)
     {
-        using var db = new GameDbContext(connectionString, timeoutSeconds);
-        var round = db.Rounds.AsNoTracking().SingleOrDefault(r => r.Id == id.ToString()) ?? throw new DomainException("Unknown round.", 404);
+        ct.ThrowIfCancellationRequested();
+        await using var db = new GameDbContext(connectionString, timeoutSeconds);
+        var round = await db.Rounds.AsNoTracking().SingleOrDefaultAsync(r => r.Id == id.ToString(), ct) ?? throw new DomainException("Unknown round.", 404);
         return ToRound(round);
     }
 
-    public Guid[] Unfinished()
+    public async Task<Guid[]> Unfinished(CancellationToken ct = default)
     {
-        using var db = new GameDbContext(connectionString, timeoutSeconds);
-        return db.Rounds.AsNoTracking().Where(r => r.State == RoundState.Pending || r.State == RoundState.Decided).Select(r => r.Id).ToArray().Select(Guid.Parse).ToArray();
+        ct.ThrowIfCancellationRequested();
+        await using var db = new GameDbContext(connectionString, timeoutSeconds);
+        return (await db.Rounds.AsNoTracking().Where(r => r.State == RoundState.Pending || r.State == RoundState.Decided).Select(r => r.Id).ToArrayAsync(ct)).Select(Guid.Parse).ToArray();
     }
 
-    public void Decide(Guid id, decimal payout) => Write(db =>
+    public Task Decide(Guid id, decimal payout, CancellationToken ct = default) => Write(db =>
         db.Rounds.Where(r => r.Id == id.ToString() && r.State == RoundState.Pending)
-            .ExecuteUpdate(s => s.SetProperty(r => r.State, RoundState.Decided).SetProperty(r => r.Payout, payout)));
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.State, RoundState.Decided).SetProperty(r => r.Payout, payout), ct), ct);
 
-    public void Reject(Guid id, Operation result) => Write(db =>
+    public Task Reject(Guid id, Operation result, CancellationToken ct = default) => Write(db =>
         db.Rounds.Where(r => r.Id == id.ToString() && r.State == RoundState.Pending)
-            .ExecuteUpdate(s => s.SetProperty(r => r.State, RoundState.Rejected).SetProperty(r => r.Result, JsonSerializer.Serialize(result.Balance, (JsonSerializerOptions?)null)).SetProperty(r => r.Error, result.Error ?? "Bet rejected.")));
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.State, RoundState.Rejected).SetProperty(r => r.Result, JsonSerializer.Serialize(result.Balance, (JsonSerializerOptions?)null)).SetProperty(r => r.Error, result.Error ?? "Bet rejected."), ct), ct);
 
-    public void Complete(Guid id, Balance balance) => Write(db =>
+    public Task Complete(Guid id, Balance balance, CancellationToken ct = default) => Write(db =>
         db.Rounds.Where(r => r.Id == id.ToString() && r.State == RoundState.Decided)
-            .ExecuteUpdate(s => s.SetProperty(r => r.State, RoundState.Settled).SetProperty(r => r.Result, JsonSerializer.Serialize(balance, (JsonSerializerOptions?)null))));
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.State, RoundState.Settled).SetProperty(r => r.Result, JsonSerializer.Serialize(balance, (JsonSerializerOptions?)null)), ct), ct);
 }

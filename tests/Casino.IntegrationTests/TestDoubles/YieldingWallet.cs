@@ -10,12 +10,12 @@ internal sealed class YieldingWallet(WalletStore store) : IWalletClient
     public async Task<Operation> Reserve(ReserveRequest request, CancellationToken ct)
     {
         await Task.Yield();
-        return store.Reserve(request);
+        return await store.Reserve(request, ct);
     }
 
     public async Task<Operation> Settle(SettleRequest request, CancellationToken ct)
     {
         await Task.Yield();
-        return store.Settle(request);
+        return await store.Settle(request, ct);
     }
 }

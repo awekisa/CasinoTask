@@ -31,7 +31,7 @@ public sealed class ComponentIsolationTests
     }
 
     [Fact]
-    public void EachDatabaseContainsOnlyItsOwnServiceTables()
+    public async Task EachDatabaseContainsOnlyItsOwnServiceTables()
     {
         using var databases = new PostgresTestDatabases();
         var walletPath = databases.Wallet;
@@ -40,10 +40,10 @@ public sealed class ComponentIsolationTests
             var wallet = new WalletStore(walletPath, 15);
             var game = new GameStore(gamePath, 15);
             var playerId = Guid.NewGuid();
-            wallet.Create(playerId);
-            wallet.Change(new(playerId, Guid.NewGuid(), 10m), "deposit");
-            game.GetOrCreate(new(playerId, Guid.NewGuid(), 2m));
-            Assert.Equal(10m, wallet.Get(playerId).Available);
+            await wallet.Create(playerId);
+            await wallet.Change(new(playerId, Guid.NewGuid(), 10m), "deposit");
+            await game.GetOrCreate(new(playerId, Guid.NewGuid(), 2m));
+            Assert.Equal(10m, (await wallet.Get(playerId)).Available);
             Assert.Equal(new[] { "operations", "reservations", "wallets" }, ReadTables(walletPath));
             Assert.Equal(new[] { "rounds" }, ReadTables(gamePath));
         }

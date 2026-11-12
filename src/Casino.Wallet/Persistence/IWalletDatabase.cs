@@ -2,7 +2,7 @@ namespace Casino.Wallet.Persistence;
 
 public interface IWalletDatabase
 {
-    T Read<T>(Func<IWalletSession, T> action);
+    Task<T> Read<T>(Func<IWalletSession, Task<T>> action, CancellationToken ct = default);
     // The implementation must run reads, checks, changes and inserts atomically.
-    T Write<T>(Func<IWalletSession, T> action);
+    Task<T> Write<T>(Func<IWalletSession, Task<T>> action, CancellationToken ct = default);
 }

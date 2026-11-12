@@ -87,4 +87,3 @@ Docker's test credentials work automatically. For manual PostgreSQL, set `CASINO
 - No autoscaling or high availability: proxy/database are single points of failure. Health endpoints do not check dependencies.
 - No schema migrations: `EnsureCreated()` initializes empty schemas only.
 - No automatic hold expiry, which could race settlement. Permanent failures need investigation: recovery retries permanent Wallet 4xx responses indefinitely. Unexpected server errors lack uniform JSON responses.
-- Database calls are synchronous and block request threads.

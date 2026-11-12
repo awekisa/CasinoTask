@@ -10,8 +10,8 @@ namespace Casino.Wallet.Controllers;
 public sealed class ReservationsController(WalletStore store) : ControllerBase
 {
     [HttpPost("reservations")]
-    public ActionResult<Operation> Reserve([FromBody] ReserveRequest request) => Ok(store.Reserve(request));
+    public async Task<ActionResult<Operation>> Reserve([FromBody] ReserveRequest request, CancellationToken ct) => Ok(await store.Reserve(request, ct));
 
     [HttpPost("settlements")]
-    public ActionResult<Operation> Settle([FromBody] SettleRequest request) => Ok(store.Settle(request));
+    public async Task<ActionResult<Operation>> Settle([FromBody] SettleRequest request, CancellationToken ct) => Ok(await store.Settle(request, ct));
 }

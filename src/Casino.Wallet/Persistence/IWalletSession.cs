@@ -4,11 +4,11 @@ namespace Casino.Wallet.Persistence;
 
 public interface IWalletSession
 {
-    WalletEntity? FindWallet(Guid playerId);
+    Task<WalletEntity?> FindWallet(Guid playerId, CancellationToken ct = default);
 
-    OperationEntity? FindOperation(Guid playerId, Guid requestId);
+    Task<OperationEntity?> FindOperation(Guid playerId, Guid requestId, CancellationToken ct = default);
 
-    ReservationEntity? FindReservation(Guid roundId);
+    Task<ReservationEntity?> FindReservation(Guid roundId, CancellationToken ct = default);
 
     void AddWallet(WalletEntity wallet);
 

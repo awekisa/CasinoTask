@@ -19,25 +19,26 @@ public static class PostgresPersistence
         }
     }
 
-    public static T Write<TContext, T>(Func<TContext> createContext, Func<TContext, T> action, int maxRetries)
+    public static async Task<T> Write<TContext, T>(Func<TContext> createContext, Func<TContext, Task<T>> action, int maxRetries, CancellationToken ct)
         where TContext : DbContext
     {
         for (var attempt = 0; ; attempt++)
         {
             try
             {
-                using var context = createContext();
-                using var transaction = context.Database.BeginTransaction(IsolationLevel.Serializable);
-                var result = action(context);
-                context.SaveChanges();
-                transaction.Commit();
+                ct.ThrowIfCancellationRequested();
+                await using var context = createContext();
+                await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+                var result = await action(context);
+                await context.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
                 return result;
             }
-            catch (Exception ex) when (attempt < maxRetries && IsRetryable(ex))
+            catch (Exception ex) when (!ct.IsCancellationRequested && ex is not OperationCanceledException && attempt < maxRetries && IsRetryable(ex))
             {
                 // Disposal rolls back an active transaction; a failed COMMIT may already have aborted it.
                 // Retry the entire read/check/write with fresh tracking and a new snapshot.
-                Thread.Sleep(Random.Shared.Next(5, Math.Min(200, 10 * (attempt + 1)) + 1));
+                await Task.Delay(Random.Shared.Next(5, Math.Min(200, 10 * (attempt + 1)) + 1), ct);
             }
         }
     }

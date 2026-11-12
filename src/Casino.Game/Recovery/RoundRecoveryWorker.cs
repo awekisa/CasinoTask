@@ -13,7 +13,7 @@ internal sealed class RoundRecoveryWorker(IGameStore store, IServiceScopeFactory
         {
             try
             {
-                foreach (var id in store.Unfinished())
+                foreach (var id in await store.Unfinished(stoppingToken))
                 {
                     if (stoppingToken.IsCancellationRequested) return;
                     try

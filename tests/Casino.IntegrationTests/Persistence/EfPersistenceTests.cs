@@ -35,21 +35,21 @@ public sealed class EfPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void FailedSaveRollsBackMoneyAndIdempotencyRecord()
+    public async Task FailedSaveRollsBackMoneyAndIdempotencyRecord()
     {
         var store = new WalletStore(WalletConnectionString, 15);
         var player = Guid.NewGuid();
-        store.Create(player);
-        store.Change(new(player, Guid.NewGuid(), 10), "deposit");
+        await store.Create(player);
+        await store.Change(new(player, Guid.NewGuid(), 10), "deposit");
         Execute(WalletConnectionString, "CREATE FUNCTION reject_wallet_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected storage failure'; END; $$; CREATE TRIGGER reject_wallet_update BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE FUNCTION reject_wallet_update();");
         var request = new MoneyRequest(player, Guid.NewGuid(), 5);
-        Assert.Throws<DbUpdateException>(() => store.Change(request, "withdraw"));
-        Assert.Equal(new Balance(10m, 0), store.Get(player));
+        await Assert.ThrowsAsync<DbUpdateException>(() => store.Change(request, "withdraw"));
+        Assert.Equal(new Balance(10m, 0), await store.Get(player));
         using (var db = new WalletDbContext(WalletConnectionString, 15))
             Assert.False(db.Operations.Any(o => o.Request == request.RequestId.ToString()));
         Execute(WalletConnectionString, "DROP TRIGGER reject_wallet_update ON wallets;");
-        Assert.Equal(new Balance(5m, 0), store.Change(request, "withdraw").Balance);
-        Assert.Equal(new Balance(5m, 0), store.Change(request, "withdraw").Balance);
+        Assert.Equal(new Balance(5m, 0), (await store.Change(request, "withdraw")).Balance);
+        Assert.Equal(new Balance(5m, 0), (await store.Change(request, "withdraw")).Balance);
     }
 
     [Fact]
@@ -58,25 +58,25 @@ public sealed class EfPersistenceTests : IDisposable
         var player = Guid.NewGuid();
         var request = new MoneyRequest(player, Guid.NewGuid(), 5.01m);
         var wallet = new WalletStore(WalletConnectionString, 15);
-        wallet.Create(player);
-        wallet.Change(new(player, Guid.NewGuid(), 10.02m), "deposit");
+        await wallet.Create(player);
+        await wallet.Change(new(player, Guid.NewGuid(), 10.02m), "deposit");
         var game = new GameStore(GameConnectionString, 15);
-        var round = game.GetOrCreate(request);
-        wallet.Reserve(new(player, round.Id, request.Amount));
-        game.Decide(round.Id, 8.51m);
+        var round = await game.GetOrCreate(request);
+        await wallet.Reserve(new(player, round.Id, request.Amount));
+        await game.Decide(round.Id, 8.51m);
         var restartedWallet = new WalletStore(WalletConnectionString, 15);
         var engine = new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(restartedWallet), new BrokenOutcome());
         Assert.Equal(8.51m, (await engine.Advance(round.Id)).Payout);
-        Assert.Equal(new Balance(13.52m, 0), restartedWallet.Get(player));
+        Assert.Equal(new Balance(13.52m, 0), await restartedWallet.Get(player));
         Assert.Equal(RoundState.Settled, (await engine.Place(request)).State);
     }
 
     [Fact]
-    public void EfGeneratedSchemaEnforcesFinancialAndIdentityConstraints()
+    public async Task EfGeneratedSchemaEnforcesFinancialAndIdentityConstraints()
     {
         var store = new WalletStore(WalletConnectionString, 15);
         var player = Guid.NewGuid();
-        store.Create(player);
+        await store.Create(player);
         using (var db = new WalletDbContext(WalletConnectionString, 15))
         {
             var wallet = db.Wallets.Single();
@@ -85,7 +85,7 @@ public sealed class EfPersistenceTests : IDisposable
         }
         var game = new GameStore(GameConnectionString, 15);
         var request = new MoneyRequest(player, Guid.NewGuid(), 1);
-        game.GetOrCreate(request);
+        await game.GetOrCreate(request);
         using var context = new GameDbContext(GameConnectionString, 15);
         context.Rounds.Add(new RoundEntity { Id = Guid.NewGuid().ToString(), Player = player.ToString(), Request = request.RequestId.ToString(), Stake = 1m });
         Assert.Throws<DbUpdateException>(() => context.SaveChanges());

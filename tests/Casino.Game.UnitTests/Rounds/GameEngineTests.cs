@@ -26,16 +26,16 @@ public sealed class GameEngineTests
         var decided = pending with { State = RoundState.Decided, Payout = 8.50m };
         var balance = new Balance(13.50m, 0);
         var settled = decided with { State = RoundState.Settled, Balance = balance };
-        store.Setup(s => s.GetOrCreate(request)).Returns(pending);
-        store.SetupSequence(s => s.Get(pending.Id)).Returns(pending).Returns(decided).Returns(settled);
+        store.Setup(s => s.GetOrCreate(request, default)).ReturnsAsync(pending);
+        store.SetupSequence(s => s.Get(pending.Id, default)).ReturnsAsync(pending).ReturnsAsync(decided).ReturnsAsync(settled);
         wallet.Setup(w => w.Reserve(new ReserveRequest(pending.PlayerId, pending.Id, 5m), default))
             .ReturnsAsync(new Operation(OperationStatus.Held, new Balance(10m, 5m)));
         outcome.Setup(o => o.Draw(5m)).Returns(3m);
-        store.Setup(s => s.Decide(pending.Id, 3m));
+        store.Setup(s => s.Decide(pending.Id, 3m, default)).Returns(Task.CompletedTask);
         // Another worker's decision won: use 8.50 from storage, not our generated 3.
         wallet.Setup(w => w.Settle(new SettleRequest(pending.Id, 8.50m), default))
             .ReturnsAsync(new Operation(OperationStatus.Settled, balance));
-        store.Setup(s => s.Complete(pending.Id, balance));
+        store.Setup(s => s.Complete(pending.Id, balance, default)).Returns(Task.CompletedTask);
 
         Assert.Equal(settled, await Engine.Place(request));
         wallet.VerifyAll();
@@ -51,10 +51,10 @@ public sealed class GameEngineTests
         var decided = pending with { State = RoundState.Decided, Payout = 0m };
         var balance = new Balance(5m, 0);
         var settled = decided with { State = RoundState.Settled, Balance = balance };
-        store.SetupSequence(s => s.Get(pending.Id)).Returns(decided).Returns(settled);
+        store.SetupSequence(s => s.Get(pending.Id, ct)).ReturnsAsync(decided).ReturnsAsync(settled);
         wallet.Setup(w => w.Settle(new SettleRequest(pending.Id, 0m), ct))
             .ReturnsAsync(new Operation(OperationStatus.Settled, balance));
-        store.Setup(s => s.Complete(pending.Id, balance));
+        store.Setup(s => s.Complete(pending.Id, balance, ct)).Returns(Task.CompletedTask);
         Assert.Equal(settled, await Engine.Advance(pending.Id, ct));
         outcome.VerifyNoOtherCalls();
         wallet.Verify(w => w.Reserve(It.IsAny<ReserveRequest>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -65,9 +65,9 @@ public sealed class GameEngineTests
     {
         var rejection = new Operation(OperationStatus.Rejected, new Balance(0, 0), "Insufficient funds.");
         var rejected = pending with { State = RoundState.Rejected, Error = rejection.Error };
-        store.SetupSequence(s => s.Get(pending.Id)).Returns(pending).Returns(rejected);
+        store.SetupSequence(s => s.Get(pending.Id, default)).ReturnsAsync(pending).ReturnsAsync(rejected);
         wallet.Setup(w => w.Reserve(It.IsAny<ReserveRequest>(), default)).ReturnsAsync(rejection);
-        store.Setup(s => s.Reject(pending.Id, rejection));
+        store.Setup(s => s.Reject(pending.Id, rejection, default)).Returns(Task.CompletedTask);
         Assert.Equal(rejected, await Engine.Advance(pending.Id));
         outcome.VerifyNoOtherCalls();
         wallet.Verify(w => w.Settle(It.IsAny<SettleRequest>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -79,21 +79,21 @@ public sealed class GameEngineTests
     public async Task FinishedRoundReplayHasNoSideEffects(RoundState state)
     {
         var completed = pending with { State = state };
-        store.Setup(s => s.Get(pending.Id)).Returns(completed);
+        store.Setup(s => s.Get(pending.Id, default)).ReturnsAsync(completed);
         Assert.Equal(completed, await Engine.Advance(pending.Id));
         wallet.VerifyNoOtherCalls();
         outcome.VerifyNoOtherCalls();
-        store.Verify(s => s.Get(pending.Id), Times.Exactly(2));
+        store.Verify(s => s.Get(pending.Id, default), Times.Exactly(2));
         store.VerifyNoOtherCalls();
     }
 
     [Fact]
     public async Task LostReservationResponseDoesNotDecideOrRejectRound()
     {
-        store.Setup(s => s.Get(pending.Id)).Returns(pending);
+        store.Setup(s => s.Get(pending.Id, default)).ReturnsAsync(pending);
         wallet.Setup(w => w.Reserve(It.IsAny<ReserveRequest>(), default)).ThrowsAsync(new HttpRequestException("Lost response"));
         await Assert.ThrowsAsync<HttpRequestException>(() => Engine.Advance(pending.Id));
-        store.Verify(s => s.Get(pending.Id), Times.Once);
+        store.Verify(s => s.Get(pending.Id, default), Times.Once);
         store.VerifyNoOtherCalls();
         outcome.VerifyNoOtherCalls();
     }
@@ -101,10 +101,10 @@ public sealed class GameEngineTests
     [Fact]
     public async Task LostSettlementResponseDoesNotCompleteRound()
     {
-        store.Setup(s => s.Get(pending.Id)).Returns(pending with { State = RoundState.Decided, Payout = 8m });
+        store.Setup(s => s.Get(pending.Id, default)).ReturnsAsync(pending with { State = RoundState.Decided, Payout = 8m });
         wallet.Setup(w => w.Settle(new SettleRequest(pending.Id, 8m), default)).ThrowsAsync(new HttpRequestException("Lost response"));
         await Assert.ThrowsAsync<HttpRequestException>(() => Engine.Advance(pending.Id));
-        store.Verify(s => s.Get(pending.Id), Times.Once);
+        store.Verify(s => s.Get(pending.Id, default), Times.Once);
         store.VerifyNoOtherCalls();
         outcome.VerifyNoOtherCalls();
     }

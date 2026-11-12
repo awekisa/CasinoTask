@@ -15,15 +15,16 @@ public sealed class PostgresWalletDatabase : IWalletDatabase
         PostgresPersistence.Initialize(db);
     }
 
-    public T Read<T>(Func<IWalletSession, T> action)
+    public async Task<T> Read<T>(Func<IWalletSession, Task<T>> action, CancellationToken ct = default)
     {
-        using var db = new WalletDbContext(connectionString, timeoutSeconds);
-        return action(new EfWalletSession(db));
+        ct.ThrowIfCancellationRequested();
+        await using var db = new WalletDbContext(connectionString, timeoutSeconds);
+        return await action(new EfWalletSession(db));
     }
 
-    public T Write<T>(Func<IWalletSession, T> action)
+    public Task<T> Write<T>(Func<IWalletSession, Task<T>> action, CancellationToken ct = default)
     {
         return PostgresPersistence.Write(() => new WalletDbContext(connectionString, timeoutSeconds),
-            db => action(new EfWalletSession(db)), maxTransactionRetries);
+            db => action(new EfWalletSession(db)), maxTransactionRetries, ct);
     }
 }

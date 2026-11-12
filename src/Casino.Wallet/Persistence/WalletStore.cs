@@ -22,48 +22,48 @@ public sealed class WalletStore
 
     public WalletStore(string connectionString, int timeoutSeconds) : this(new PostgresWalletDatabase(connectionString, timeoutSeconds)) { }
 
-    private T Write<T>(Func<IWalletSession, T> action) => database.Write(action);
+    private Task<T> Write<T>(Func<IWalletSession, Task<T>> action, CancellationToken ct) => database.Write(action, ct);
 
-    private static WalletEntity Find(IWalletSession db, Guid player) =>
-        db.FindWallet(player) ?? throw new DomainException("Unknown player.", 404);
+    private static async Task<WalletEntity> Find(IWalletSession db, Guid player, CancellationToken ct) =>
+        await db.FindWallet(player, ct) ?? throw new DomainException("Unknown player.", 404);
     private static Balance BalanceOf(WalletEntity wallet) => new(wallet.Total, wallet.Held);
     private static Operation Decode(string json) => JsonSerializer.Deserialize<Operation>(json)!;
 
-    public Balance Create(Guid player)
+    public Task<Balance> Create(Guid player, CancellationToken ct = default)
     {
         Money.Id(player);
-        return Write(db =>
+        return Write(async db =>
         {
-            var wallet = db.FindWallet(player);
+            var wallet = await db.FindWallet(player, ct);
             if (wallet is null)
             {
                 wallet = new WalletEntity { Player = player.ToString() };
                 db.AddWallet(wallet);
             }
             return BalanceOf(wallet);
-        });
+        }, ct);
     }
 
-    public Balance Get(Guid player)
+    public Task<Balance> Get(Guid player, CancellationToken ct = default)
     {
-        return database.Read(db => BalanceOf(Find(db, player)));
+        return database.Read(async db => BalanceOf(await Find(db, player, ct)), ct);
     }
 
-    public Operation Change(MoneyRequest request, string kind)
+    public Task<Operation> Change(MoneyRequest request, string kind, CancellationToken ct = default)
     {
         Money.Id(request.PlayerId);
         Money.Id(request.RequestId);
         if (kind is not ("deposit" or "withdraw")) throw new DomainException("Invalid operation.");
         var amount = Money.Validate(request.Amount);
-        return Write(db =>
+        return Write(async db =>
         {
-            var previous = db.FindOperation(request.PlayerId, request.RequestId);
+            var previous = await db.FindOperation(request.PlayerId, request.RequestId, ct);
             if (previous is not null)
             {
                 if (previous.Kind != kind || previous.Amount != amount) throw new DomainException("Idempotency key reused with different data.", 409);
                 return Decode(previous.Result);
             }
-            var wallet = Find(db, request.PlayerId);
+            var wallet = await Find(db, request.PlayerId, ct);
             var balance = BalanceOf(wallet);
             var error = kind == "withdraw" && balance.Available < amount ? "Insufficient available funds." :
                 kind == "deposit" && balance.Total + amount + 9 * balance.Held > Money.MaxBalance ? "Balance limit exceeded." : null;
@@ -78,23 +78,23 @@ public sealed class WalletStore
                 Result = JsonSerializer.Serialize(result)
             });
             return result;
-        });
+        }, ct);
     }
 
-    public Operation Reserve(ReserveRequest request)
+    public Task<Operation> Reserve(ReserveRequest request, CancellationToken ct = default)
     {
         Money.Id(request.RoundId);
         Money.Id(request.PlayerId);
         Money.Validate(request.Stake, bet: true);
-        return Write(db =>
+        return Write(async db =>
         {
-            var previous = db.FindReservation(request.RoundId);
+            var previous = await db.FindReservation(request.RoundId, ct);
             if (previous is not null)
             {
                 if (previous.Player != request.PlayerId.ToString() || previous.Stake != request.Stake) throw new DomainException("Round reused with different data.", 409);
                 return Decode(previous.Result);
             }
-            var wallet = db.FindWallet(request.PlayerId);
+            var wallet = await db.FindWallet(request.PlayerId, ct);
             var balance = wallet is null ? new Balance(0, 0) : BalanceOf(wallet);
             string? error = wallet is null ? "Unknown player." : null;
             if (error is null && balance.Available < request.Stake) error = "Insufficient available funds.";
@@ -114,12 +114,12 @@ public sealed class WalletStore
                 Result = JsonSerializer.Serialize(result)
             });
             return result;
-        });
+        }, ct);
     }
 
-    public Operation Settle(SettleRequest request) => Write(db =>
+    public Task<Operation> Settle(SettleRequest request, CancellationToken ct = default) => Write(async db =>
     {
-        var reservation = db.FindReservation(request.RoundId) ?? throw new DomainException("Unknown reservation.", 404);
+        var reservation = await db.FindReservation(request.RoundId, ct) ?? throw new DomainException("Unknown reservation.", 404);
         if (reservation.Status == ReservationStatus.Rejected) throw new DomainException("Cannot settle rejected reservation.", 409);
         if (request.Payout < 0 || request.Payout > reservation.Stake * 10 || decimal.Round(request.Payout, 2) != request.Payout) throw new DomainException("Invalid payout.");
         if (reservation.Status == ReservationStatus.Settled)
@@ -127,7 +127,7 @@ public sealed class WalletStore
             if (reservation.Payout != request.Payout) throw new DomainException("Settlement payout mismatch.", 409);
             return Decode(reservation.Result);
         }
-        var wallet = Find(db, Guid.Parse(reservation.Player));
+        var wallet = await Find(db, Guid.Parse(reservation.Player), ct);
         wallet.Total += request.Payout - reservation.Stake;
         wallet.Held -= reservation.Stake;
         var result = new Operation(OperationStatus.Settled, BalanceOf(wallet));
@@ -135,5 +135,5 @@ public sealed class WalletStore
         reservation.Payout = request.Payout;
         reservation.Result = JsonSerializer.Serialize(result);
         return result;
-    });
+    }, ct);
 }

@@ -9,5 +9,5 @@ namespace Casino.Game.Controllers;
 public sealed class RoundsController(IGameStore store) : ControllerBase
 {
     [HttpGet("{id:guid}")]
-    public ActionResult<Round> Get(Guid id) => Ok(store.Get(id));
+    public async Task<ActionResult<Round>> Get(Guid id, CancellationToken ct) => Ok(await store.Get(id, ct));
 }

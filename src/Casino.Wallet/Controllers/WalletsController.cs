@@ -9,8 +9,8 @@ namespace Casino.Wallet.Controllers;
 public sealed class WalletsController(WalletStore store) : ControllerBase
 {
     [HttpPut("{player:guid}")]
-    public ActionResult<Balance> Create(Guid player) => Ok(store.Create(player));
+    public async Task<ActionResult<Balance>> Create(Guid player, CancellationToken ct) => Ok(await store.Create(player, ct));
 
     [HttpGet("{player:guid}")]
-    public ActionResult<Balance> Get(Guid player) => Ok(store.Get(player));
+    public async Task<ActionResult<Balance>> Get(Guid player, CancellationToken ct) => Ok(await store.Get(player, ct));
 }

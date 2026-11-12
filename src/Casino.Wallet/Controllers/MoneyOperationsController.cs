@@ -9,8 +9,8 @@ namespace Casino.Wallet.Controllers;
 public sealed class MoneyOperationsController(WalletStore store) : ControllerBase
 {
     [HttpPost("/deposits")]
-    public ActionResult<Operation> Deposit([FromBody] MoneyRequest request) => Ok(store.Change(request, "deposit"));
+    public async Task<ActionResult<Operation>> Deposit([FromBody] MoneyRequest request, CancellationToken ct) => Ok(await store.Change(request, "deposit", ct));
 
     [HttpPost("/withdrawals")]
-    public ActionResult<Operation> Withdraw([FromBody] MoneyRequest request) => Ok(store.Change(request, "withdraw"));
+    public async Task<ActionResult<Operation>> Withdraw([FromBody] MoneyRequest request, CancellationToken ct) => Ok(await store.Change(request, "withdraw", ct));
 }

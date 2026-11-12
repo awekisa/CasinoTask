@@ -17,19 +17,19 @@ internal sealed class FaultWallet(WalletStore store, string? fault = null) : IWa
         }
     }
 
-    public Task<Operation> Reserve(ReserveRequest request, CancellationToken ct)
+    public async Task<Operation> Reserve(ReserveRequest request, CancellationToken ct)
     {
         Fail("reserve-before");
-        var result = store.Reserve(request);
+        var result = await store.Reserve(request, ct);
         Fail("reserve-after");
-        return Task.FromResult(result);
+        return result;
     }
 
-    public Task<Operation> Settle(SettleRequest request, CancellationToken ct)
+    public async Task<Operation> Settle(SettleRequest request, CancellationToken ct)
     {
         Fail("settle-before");
-        var result = store.Settle(request);
+        var result = await store.Settle(request, ct);
         Fail("settle-after");
-        return Task.FromResult(result);
+        return result;
     }
 }
