@@ -7,12 +7,10 @@ public static class WebServiceCollectionExtensions
 {
     public static IServiceCollection AddWalletAndGameApiProxy(this IServiceCollection services, IConfiguration configuration)
     {
-        var walletSettings = configuration.GetRequiredSection("Wallet").Get<WalletApiSettings>()!;
-        var gameSettings = configuration.GetRequiredSection("Game").Get<GameApiSettings>()!;
+        var walletSettings = configuration.GetRequiredSection("Wallet").Get<EndpointSettings>()!;
+        var gameSettings = configuration.GetRequiredSection("Game").Get<EndpointSettings>()!;
         walletSettings.Validate();
         gameSettings.Validate();
-        services.AddSingleton(walletSettings);
-        services.AddSingleton(gameSettings);
         services.AddHttpClient("Wallet", client =>
         {
             client.BaseAddress = new Uri(walletSettings.BaseUrl);

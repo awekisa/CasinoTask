@@ -22,9 +22,8 @@ public static class GameServiceCollectionExtensions
 
     public static IServiceCollection AddWalletClient(this IServiceCollection services, IConfiguration configuration)
     {
-        var walletSettings = configuration.GetRequiredSection(EndpointSettings.WalletSectionName).Get<WalletClientSettings>()!;
+        var walletSettings = configuration.GetRequiredSection(EndpointSettings.WalletSectionName).Get<EndpointSettings>()!;
         walletSettings.Validate();
-        services.AddSingleton(walletSettings);
         services.AddHttpClient<IWalletClient, HttpWalletClient>(client =>
         {
             client.BaseAddress = new Uri(walletSettings.BaseUrl);
