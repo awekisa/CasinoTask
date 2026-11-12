@@ -1,3 +1,4 @@
+using Casino.Wallet.Persistence.Implementation;
 using Casino.Wallet.Persistence.Enums;
 using Casino.IntegrationTests.Hosting;
 using Casino.Game.Persistence.Implementation;
@@ -38,7 +39,7 @@ public sealed class ComponentIsolationTests
         var walletPath = databases.Wallet;
         var gamePath = databases.Game;
         {
-            var wallet = new WalletStore(walletPath, 15);
+            var wallet = new WalletStore(new PostgresWalletDatabase(walletPath, 15));
             var game = new GameStore(gamePath, 15);
             var playerId = Guid.NewGuid();
             await wallet.Create(playerId);

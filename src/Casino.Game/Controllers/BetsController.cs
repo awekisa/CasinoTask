@@ -14,15 +14,15 @@ public sealed class BetsController(IGameStore store, GameEngine engine, ILogger<
     [HttpPost]
     public async Task<ActionResult<Round>> Place([FromBody] MoneyRequest request, CancellationToken ct)
     {
-        var round = await store.GetOrCreate(request, ct);
+        Round round;
         try
         {
-            round = await engine.Advance(round.Id, ct);
+            round = await engine.Place(request, ct);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested && (ex is HttpRequestException or TaskCanceledException))
         {
+            round = await store.GetOrCreate(request, ct);
             logger.LogWarning(ex, "Round {RoundId} awaits Wallet; recovery will retry", round.Id);
-            round = await store.Get(round.Id, ct);
         }
 
         if (round.State is RoundState.Settled or RoundState.Rejected)

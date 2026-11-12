@@ -14,11 +14,5 @@ public static class Money
         return amount;
     }
 
-    public static long ToMinorUnits(decimal amount)
-    {
-        if (decimal.Round(amount, 2) != amount) throw new ArgumentOutOfRangeException(nameof(amount), "Fractional cents cannot be stored.");
-        return checked((long)(amount * 100m));
-    }
-
     public static void Id(Guid id) { if (id == Guid.Empty) throw new DomainException("An ID must not be empty."); }
 }

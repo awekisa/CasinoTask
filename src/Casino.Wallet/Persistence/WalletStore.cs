@@ -7,8 +7,6 @@ using Casino.Wallet.Finance;
 using Casino.Wallet.Persistence.Entities;
 using Casino.Wallet.Persistence.Enums;
 
-using Casino.Wallet.Persistence.Implementation;
-
 namespace Casino.Wallet.Persistence;
 
 public sealed class WalletStore
@@ -19,8 +17,6 @@ public sealed class WalletStore
     {
         this.database = database;
     }
-
-    public WalletStore(string connectionString, int timeoutSeconds) : this(new PostgresWalletDatabase(connectionString, timeoutSeconds)) { }
 
     private Task<T> Write<T>(Func<IWalletSession, Task<T>> action, CancellationToken ct) => database.Write(action, ct);
 
