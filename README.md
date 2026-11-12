@@ -4,7 +4,7 @@
 
 ## Run
 
-Requires .NET SDK 10.0.403 (or a later compatible .NET 10 SDK) and PostgreSQL 18. The Windows launcher requires PowerShell 7.7. Run commands from the repository root.
+Requires .NET 10 SDK and PostgreSQL 18. The Windows launcher requires PowerShell 7.7. Run commands from the repository root.
 
 **1. Prepare PostgreSQL — choose one option.**
 
