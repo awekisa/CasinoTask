@@ -24,7 +24,7 @@
         <form id="bet-form"><label for="bet-amount">Stake in dollars · $1–$10</label><input id="bet-amount" name="amount" type="number" min="1" max="10" step="0.01" value="5.00" required><button type="submit">Play round <span aria-hidden="true">↗</span></button></form>
       </section>
     </div>
-    <section class="result" aria-live="polite" aria-atomic="true"><span class="label">LATEST UPDATE</span><p id="message">Connecting to your wallet…</p><button id="retry" type="button" hidden>Retry saved request</button></section>
+    <section class="result" aria-live="polite" aria-atomic="true"><span class="label">LATEST UPDATE</span><p id="message">Connecting to your wallet…</p><button id="retry" type="button" hidden>Retry saved request</button><button id="leave" class="secondary" type="button" disabled>Leave</button></section>
     <details class="player"><summary>Your player</summary><p>Saved in this browser. To use an existing wallet, enter its player ID below.</p><form id="player-form"><label for="player-id">Player ID</label><div class="player-input"><input id="player-id" required spellcheck="false" autocomplete="off"><button class="secondary" type="submit">Use player</button></div></form><p class="fine">This local demo uses player IDs, without sign-in.</p></details>
     <footer>Made for a simple round of play. <span>Amounts shown in USD.</span></footer>
   </main>

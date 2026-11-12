@@ -7,6 +7,7 @@ const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 let profile;
 let busy = false;
 let ready = false;
+let hasLeft = false;
 
 function readProfile() {
     const value = localStorage.getItem(storageKey);
@@ -21,9 +22,10 @@ function message(text, error = false) {
     document.querySelector(".result").classList.toggle("error", error);
 }
 function renderControls() {
-    const blocked = busy || !ready || !!profile?.pending;
+    const blocked = busy || !ready || !!profile?.pending || hasLeft;
     document.querySelectorAll("#wallet-form button, #bet-form button, #wallet-form input, #bet-form input, #player-form button, #player-form input").forEach(element => element.disabled = blocked);
-    $("refresh").disabled = busy;
+    $("refresh").disabled = busy || hasLeft;
+    $("leave").disabled = blocked;
     $("retry").hidden = !profile?.pending;
     $("retry").disabled = busy;
     $("player-id").value = profile?.playerId ?? "";
@@ -46,8 +48,10 @@ async function api(path, method = "GET", body) {
     return result;
 }
 async function refresh() {
-    displayBalance(await api(`/api/wallets/${profile.playerId}`, "PUT"));
+    const balance = await api(`/api/wallets/${profile.playerId}`, "PUT");
+    displayBalance(balance);
     ready = true;
+    return balance;
 }
 async function exclusive(action) {
     if (busy) return;
@@ -87,10 +91,14 @@ async function submitPending() {
         profile.pending = null;
         saveProfile();
         if (result.state === "Rejected" || result.status === "Rejected") message(result.error || "Request rejected.", true);
-        else if (pending.action === "bet") message(result.payout === 0 ? "No win this round. Try your luck again." : `Round complete. Payout: ${currency.format(result.payout)} (including any returned stake).`);
-        else message(`${pending.action === "deposit" ? "Deposit" : "Withdrawal"} of ${currency.format(pending.request.amount)} completed.`);
+        else if (pending.action === "bet") message(result.payout === 0 ? "You lost this round." : `Congrats - you won ${currency.format(result.payout)}!`);
+        else message(`Your ${pending.action === "deposit" ? "deposit" : "withdrawal"} of ${currency.format(pending.request.amount)} was successful.`);
     }
-    try { await refresh(); }
+    try {
+        const balance = await refresh();
+        message(`${$("message").textContent} Your current balance is: ${currency.format(balance.total)}`,
+            result.state === "Rejected" || result.status === "Rejected");
+    }
     catch { message(`${$("message").textContent} Current balance is unavailable; refresh when Wallet is running.`, true); }
 }
 function place(action, value) {
@@ -109,6 +117,11 @@ function place(action, value) {
 $("wallet-form").addEventListener("submit", event => { event.preventDefault(); place(event.submitter?.value || "deposit", $("wallet-amount").value); });
 $("bet-form").addEventListener("submit", event => { event.preventDefault(); place("bet", $("bet-amount").value); });
 $("retry").addEventListener("click", () => exclusive(submitPending));
+$("leave").addEventListener("click", () => exclusive(async () => {
+    if (profile.pending) { message("Resolve your saved request before leaving."); return; }
+    hasLeft = true;
+    message("Thank you for playing! Hope to see you again soon.");
+}));
 $("refresh").addEventListener("click", () => exclusive(async () => { await refresh(); message(profile.pending ? "Balance updated. You still have a saved request to resolve." : "Balance updated. Ready when you are."); }));
 $("player-form").addEventListener("submit", event => {
     event.preventDefault();
