@@ -2,7 +2,8 @@ using Casino.Wallet.Configuration.Extensions;
 using Casino.Wallet.Errors.Exceptions;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
-builder.AddWalletServices();
+builder.Services.AddWalletPersistence(builder.Configuration);
+builder.Services.AddControllers();
 var app = builder.Build();
 app.Use(async (context, next) =>
 {

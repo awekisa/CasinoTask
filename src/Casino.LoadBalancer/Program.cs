@@ -1,6 +1,5 @@
-using Casino.LoadBalancer.Configuration.Extensions;
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
-builder.AddLoadBalancerServices();
+builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 var app = builder.Build();
 app.MapReverseProxy();
 app.Run();

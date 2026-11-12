@@ -3,7 +3,10 @@ using Casino.Game.Errors.Exceptions;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
 
-builder.AddGameServices();
+builder.Services.AddGamePersistence(builder.Configuration);
+builder.Services.AddWalletClient(builder.Configuration);
+builder.Services.AddRoundProcessing(builder.Configuration);
+builder.Services.AddControllers();
 
 var app = builder.Build();
 

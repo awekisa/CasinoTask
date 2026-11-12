@@ -6,7 +6,8 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     ContentRootPath = AppContext.BaseDirectory,
     WebRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot")
 });
-builder.AddWebProxyServices();
+builder.Services.AddWalletAndGameApiProxy(builder.Configuration);
+builder.Services.AddControllers();
 var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
