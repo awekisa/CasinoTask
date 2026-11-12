@@ -1,3 +1,4 @@
+using Casino.Wallet.Wallets;
 using Casino.Wallet.Persistence.Implementation;
 using Casino.Wallet.Persistence.Enums;
 using Casino.IntegrationTests.Hosting;
@@ -39,7 +40,7 @@ public sealed class EfPersistenceTests : IDisposable
     [Fact]
     public async Task FailedSaveRollsBackMoneyAndIdempotencyRecord()
     {
-        var store = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        var store = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         var player = Guid.NewGuid();
         await store.Create(player);
         await store.Change(new(player, Guid.NewGuid(), 10), MoneyOperationKind.Deposit);
@@ -59,14 +60,14 @@ public sealed class EfPersistenceTests : IDisposable
     {
         var player = Guid.NewGuid();
         var request = new MoneyRequest(player, Guid.NewGuid(), 5.01m);
-        var wallet = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        var wallet = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         await wallet.Create(player);
         await wallet.Change(new(player, Guid.NewGuid(), 10.02m), MoneyOperationKind.Deposit);
         var game = new GameStore(GameConnectionString, 15);
         var round = await game.GetOrCreate(request);
         await wallet.Reserve(new(player, round.Id, request.Amount));
         await game.Decide(round.Id, 8.51m);
-        var restartedWallet = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        var restartedWallet = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         var engine = new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(restartedWallet), new BrokenOutcome());
         Assert.Equal(8.51m, (await engine.Advance(round.Id)).Payout);
         Assert.Equal(new Balance(13.52m, 0), await restartedWallet.Get(player));
@@ -76,7 +77,7 @@ public sealed class EfPersistenceTests : IDisposable
     [Fact]
     public async Task EfGeneratedSchemaEnforcesFinancialAndIdentityConstraints()
     {
-        var store = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        var store = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         var player = Guid.NewGuid();
         await store.Create(player);
         using (var db = new WalletDbContext(WalletConnectionString, 15))

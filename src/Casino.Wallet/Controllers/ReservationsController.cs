@@ -1,13 +1,13 @@
+using Casino.Wallet.Wallets;
 using Casino.Contracts.Wallet.Requests;
 using Casino.Contracts.Wallet.Responses;
-using Casino.Wallet.Persistence;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Casino.Wallet.Controllers;
 
 [ApiController]
 [Route("internal")]
-public sealed class ReservationsController(WalletStore store) : ControllerBase
+public sealed class ReservationsController(WalletService store) : ControllerBase
 {
     [HttpPost("reservations")]
     public async Task<ActionResult<Operation>> Reserve([FromBody] ReserveRequest request, CancellationToken ct) => Ok(await store.Reserve(request, ct));

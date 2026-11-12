@@ -1,3 +1,4 @@
+using Casino.Wallet.Persistence;
 using System.Text.Json;
 using Casino.Contracts.Wallet.Enums;
 using Casino.Contracts.Wallet.Requests;
@@ -7,13 +8,13 @@ using Casino.Wallet.Finance;
 using Casino.Wallet.Persistence.Entities;
 using Casino.Wallet.Persistence.Enums;
 
-namespace Casino.Wallet.Persistence;
+namespace Casino.Wallet.Wallets;
 
-public sealed class WalletStore
+public sealed class WalletService
 {
     private readonly IWalletDatabase database;
 
-    public WalletStore(IWalletDatabase database)
+    public WalletService(IWalletDatabase database)
     {
         this.database = database;
     }

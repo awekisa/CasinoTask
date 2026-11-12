@@ -1,12 +1,12 @@
+using Casino.Wallet.Wallets;
 using Casino.Contracts.Wallet.Responses;
-using Casino.Wallet.Persistence;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Casino.Wallet.Controllers;
 
 [ApiController]
 [Route("wallets")]
-public sealed class WalletsController(WalletStore store) : ControllerBase
+public sealed class WalletsController(WalletService store) : ControllerBase
 {
     [HttpPut("{player:guid}")]
     public async Task<ActionResult<Balance>> Create(Guid player, CancellationToken ct) => Ok(await store.Create(player, ct));

@@ -1,11 +1,11 @@
+using Casino.Wallet.Wallets;
 using Casino.Contracts.Wallet.Requests;
 using Casino.Contracts.Wallet.Responses;
 using Casino.Game.Clients;
-using Casino.Wallet.Persistence;
 
 namespace Casino.IntegrationTests.TestDoubles;
 
-internal sealed class YieldingWallet(WalletStore store) : IWalletClient
+internal sealed class YieldingWallet(WalletService store) : IWalletClient
 {
     public async Task<Operation> Reserve(ReserveRequest request, CancellationToken ct)
     {

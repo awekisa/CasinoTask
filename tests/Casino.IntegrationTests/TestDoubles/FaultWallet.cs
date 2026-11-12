@@ -1,11 +1,11 @@
+using Casino.Wallet.Wallets;
 using Casino.Contracts.Wallet.Requests;
 using Casino.Contracts.Wallet.Responses;
 using Casino.Game.Clients;
-using Casino.Wallet.Persistence;
 
 namespace Casino.IntegrationTests.TestDoubles;
 
-internal sealed class FaultWallet(WalletStore store, string? fault = null) : IWalletClient
+internal sealed class FaultWallet(WalletService store, string? fault = null) : IWalletClient
 {
     private bool fired;
     private void Fail(string point)

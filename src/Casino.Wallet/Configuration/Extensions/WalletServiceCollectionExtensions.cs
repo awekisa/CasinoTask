@@ -1,3 +1,4 @@
+using Casino.Wallet.Wallets;
 using Casino.Wallet.Configuration.Settings;
 using Casino.Wallet.Persistence;
 using Casino.Wallet.Persistence.Implementation;
@@ -12,7 +13,7 @@ public static class WalletServiceCollectionExtensions
         databaseSettings.Validate();
         services.AddSingleton<IWalletDatabase>(new PostgresWalletDatabase(databaseSettings.ConnectionString,
             databaseSettings.TimeoutSeconds, databaseSettings.MaxTransactionRetries));
-        services.AddSingleton<WalletStore>();
+        services.AddSingleton<WalletService>();
         return services;
     }
 }

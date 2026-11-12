@@ -1,3 +1,4 @@
+using Casino.Wallet.Wallets;
 using Casino.Contracts.Wallet.Enums;
 using Casino.Contracts.Wallet.Requests;
 using Casino.Contracts.Wallet.Responses;
@@ -9,9 +10,9 @@ using Casino.Wallet.Persistence.Enums;
 using Moq;
 using Xunit;
 
-namespace Casino.Wallet.UnitTests.Persistence;
+namespace Casino.Wallet.UnitTests.Wallets;
 
-public sealed class WalletStoreTests
+public sealed class WalletServiceTests
 {
     private readonly Guid playerId = Guid.NewGuid();
     private readonly Mock<IWalletSession> session = new(MockBehavior.Strict);
@@ -19,9 +20,9 @@ public sealed class WalletStoreTests
     private readonly WalletEntity account;
     private OperationEntity? operation;
     private ReservationEntity? reservation;
-    private WalletStore Store => new(database.Object);
+    private WalletService Store => new(database.Object);
 
-    public WalletStoreTests()
+    public WalletServiceTests()
     {
         account = new WalletEntity { Player = playerId, Total = 10m };
         session.Setup(s => s.FindWallet(playerId, default)).ReturnsAsync(account);

@@ -1,3 +1,4 @@
+using Casino.Wallet.Wallets;
 using Casino.Wallet.Persistence.Implementation;
 using Casino.Wallet.Persistence.Enums;
 using Casino.IntegrationTests.Hosting;
@@ -12,7 +13,6 @@ using GameDomainException = Casino.Game.Errors.Exceptions.DomainException;
 using Casino.Wallet.Finance;
 using Casino.Game.Persistence;
 using Casino.IntegrationTests.TestDoubles;
-using Casino.Wallet.Persistence;
 
 using Xunit;
 
@@ -24,9 +24,9 @@ public sealed class CorrectnessTests : IDisposable
     private string WalletConnectionString => databases.Wallet;
     private string GameConnectionString => databases.Game;
     private readonly Guid player = Guid.NewGuid();
-    private async Task<WalletStore> Fund(decimal amount = 10)
+    private async Task<WalletService> Fund(decimal amount = 10)
     {
-        var wallet = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        var wallet = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         await wallet.Create(player);
         await wallet.Change(new(player, Guid.NewGuid(), amount), MoneyOperationKind.Deposit);
         return wallet;
@@ -44,7 +44,7 @@ public sealed class CorrectnessTests : IDisposable
         var deposit = new MoneyRequest(player, Guid.NewGuid(), 1.20m);
         var deposited = await wallet.Change(deposit, MoneyOperationKind.Deposit);
         Assert.Equal(new Balance(1.30m, 0m), deposited.Balance);
-        wallet = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        wallet = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         Assert.Equal(deposited, await wallet.Change(deposit, MoneyOperationKind.Deposit));
         var request = new MoneyRequest(player, Guid.NewGuid(), 1.01m);
         var engine = new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(wallet), new FixedOutcome(0.02m));
@@ -52,7 +52,7 @@ public sealed class CorrectnessTests : IDisposable
         Assert.Equal(1.01m, result.Stake);
         Assert.Equal(0.02m, result.Payout);
         Assert.Equal(new Balance(0.31m, 0m), result.Balance);
-        var restarted = new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15))), new BrokenOutcome());
+        var restarted = new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15))), new BrokenOutcome());
         Assert.Equal(result, await restarted.Place(request));
         Assert.Equal(new Balance(0.31m, 0m), await wallet.Get(player));
     }
@@ -60,11 +60,11 @@ public sealed class CorrectnessTests : IDisposable
     [Fact]
     public async Task NewWalletAndRepeatedCreationPreserveFunds()
     {
-        var wallet = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        var wallet = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         Assert.Equal(new Balance(0, 0), await wallet.Create(player));
         await wallet.Change(new(player, Guid.NewGuid(), 10), MoneyOperationKind.Deposit);
         Assert.Equal(10.0m, (await wallet.Create(player)).Total);
-        Assert.Equal(10.0m, (await new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15)).Get(player)).Total);
+        Assert.Equal(10.0m, (await new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15)).Get(player)).Total);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public sealed class CorrectnessTests : IDisposable
         var id = Assert.Single(await store.Unfinished());
         // Recreate both repositories and engine: no in-memory recovery state survives.
         var restarted = new GameStore(GameConnectionString, 15);
-        var restartedWallet = new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15));
+        var restartedWallet = new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15));
         var recovery = new GameEngine(restarted, new FaultWallet(restartedWallet), new FixedOutcome(failure.StartsWith("settle") ? 1.23m : 8.5m));
         var result = await recovery.Advance(id);
         Assert.Equal(RoundState.Settled, result.State);
@@ -171,7 +171,7 @@ public sealed class CorrectnessTests : IDisposable
         var request = new MoneyRequest(player, Guid.NewGuid(), 5);
         await Assert.ThrowsAsync<InvalidOperationException>(() => new GameEngine(store, new FaultWallet(wallet), new BrokenOutcome()).Place(request));
         Assert.Equal(new Balance(10.0m, 5.0m), await wallet.Get(player));
-        var result = await new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(new WalletStore(new PostgresWalletDatabase(WalletConnectionString, 15))), new FixedOutcome(8.5m)).Place(request);
+        var result = await new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(new WalletService(new PostgresWalletDatabase(WalletConnectionString, 15))), new FixedOutcome(8.5m)).Place(request);
         Assert.Equal(RoundState.Settled, result.State);
         Assert.Equal(new Balance(13.5m, 0), await wallet.Get(player));
     }

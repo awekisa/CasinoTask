@@ -1,10 +1,10 @@
+using Casino.Wallet.Wallets;
 using Casino.Wallet.Persistence.Implementation;
 using Casino.Wallet.Persistence.Enums;
 using Casino.IntegrationTests.Hosting;
 using Casino.Game.Persistence.Implementation;
 using Casino.Contracts.Wallet.Requests;
 using Casino.Game.Persistence;
-using Casino.Wallet.Persistence;
 using Npgsql;
 using Xunit;
 
@@ -13,7 +13,7 @@ namespace Casino.IntegrationTests.Architecture;
 public sealed class ComponentIsolationTests
 {
     [Theory]
-    [InlineData(typeof(WalletStore))]
+    [InlineData(typeof(WalletService))]
     [InlineData(typeof(GameStore))]
     public void ServicesShareOnlyContracts(Type serviceType)
     {
@@ -39,7 +39,7 @@ public sealed class ComponentIsolationTests
         var walletPath = databases.Wallet;
         var gamePath = databases.Game;
         {
-            var wallet = new WalletStore(new PostgresWalletDatabase(walletPath, 15));
+            var wallet = new WalletService(new PostgresWalletDatabase(walletPath, 15));
             var game = new GameStore(gamePath, 15);
             var playerId = Guid.NewGuid();
             await wallet.Create(playerId);
