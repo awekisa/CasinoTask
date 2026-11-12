@@ -22,7 +22,7 @@ Without Docker, install/start PostgreSQL on port 5432 and initialize it once as 
 psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f database/init.sql
 ```
 
-Use your administrator username if different; `psql` must be on PATH. Run outside a transaction. Services create their tables at startup. `start-postgres.ps1` only starts a previously prepared portable installation.
+Use your administrator username if different; `psql` must be on PATH. Run outside a transaction. Services create their tables at startup.
 
 **2. Start the application.**
 
@@ -80,8 +80,6 @@ dotnet test
 Unit tests mock dependencies. Integration tests use isolated PostgreSQL databases and actual service processes to check idempotency, concurrent money operations, rollback, failover, and recovery. Only generated test databases are dropped.
 
 Docker's test credentials work automatically. For manual PostgreSQL, set `CASINO_TEST_POSTGRES` to an administrator connection string allowing database creation/deletion. Database-free tests: `dotnet test tests/Casino.Game.UnitTests` and `dotnet test tests/Casino.Wallet.UnitTests`.
-
-Optional browser checks: `node scripts/browser_integration.cjs` requires Playwright, Chrome, and `psql` (`PLAYWRIGHT_MODULE`/`PSQL_PATH` overrides available).
 
 ## Deliberately left out and limitations
 

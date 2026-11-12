@@ -9,7 +9,7 @@ $probe = [Net.Sockets.TcpClient]::new()
 try {
     $null = $probe.ConnectAsync('127.0.0.1', 5432).WaitAsync([TimeSpan]::FromSeconds(3)).GetAwaiter().GetResult()
 } catch {
-    throw 'PostgreSQL is not reachable on 127.0.0.1:5432. Run ./scripts/start-postgres.ps1 or docker compose up -d postgres first.'
+    throw 'PostgreSQL is not reachable on 127.0.0.1:5432. Run docker compose up -d --wait postgres first, or start your manually installed PostgreSQL server.'
 } finally { $probe.Dispose() }
 $ports = @(5101, 5102, 5103, 5201, 5301, 5202, 5302)
 $occupied = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |

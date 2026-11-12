@@ -6,8 +6,5 @@ TestResults/
 .vs/
 .player.json*
 
-__pycache__/
-*.pyc
-
 .demo/
 *.user
