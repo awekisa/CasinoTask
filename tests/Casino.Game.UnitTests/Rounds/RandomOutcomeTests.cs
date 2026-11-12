@@ -7,6 +7,8 @@ public sealed class RandomOutcomeTests
 {
     [Theory]
     [InlineData(1)]
+    [InlineData(1.01)]
+    [InlineData(1.13)]
     [InlineData(10)]
     public void OutcomeBoundaries(decimal stake)
     {

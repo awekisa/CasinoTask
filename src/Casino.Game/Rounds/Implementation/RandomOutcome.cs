@@ -9,6 +9,7 @@ public sealed class RandomOutcome : IOutcome
     {
         Money.Validate(stake);
         var category = RandomNumberGenerator.GetInt32(100);
+        if (category < 50) return 0m;
         var centCount = (int)(Money.ToMinorUnits(stake) * (category < 90 ? 2 : 8));
         return Calculate(stake, category, RandomNumberGenerator.GetInt32(centCount));
     }
