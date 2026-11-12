@@ -49,11 +49,11 @@ public sealed class WalletStore
         return database.Read(async db => BalanceOf(await Find(db, player, ct)), ct);
     }
 
-    public Task<Operation> Change(MoneyRequest request, string kind, CancellationToken ct = default)
+    public Task<Operation> Change(MoneyRequest request, MoneyOperationKind kind, CancellationToken ct = default)
     {
         Money.Id(request.PlayerId);
         Money.Id(request.RequestId);
-        if (kind is not ("deposit" or "withdraw")) throw new DomainException("Invalid operation.");
+        if (kind is not (MoneyOperationKind.Deposit or MoneyOperationKind.Withdraw)) throw new DomainException("Invalid operation.");
         var amount = Money.Validate(request.Amount);
         return Write(async db =>
         {
@@ -65,9 +65,9 @@ public sealed class WalletStore
             }
             var wallet = await Find(db, request.PlayerId, ct);
             var balance = BalanceOf(wallet);
-            var error = kind == "withdraw" && balance.Available < amount ? "Insufficient available funds." :
-                kind == "deposit" && balance.Total + amount + 9 * balance.Held > Money.MaxBalance ? "Balance limit exceeded." : null;
-            if (error is null) wallet.Total += kind == "deposit" ? amount : -amount;
+            var error = kind == MoneyOperationKind.Withdraw && balance.Available < amount ? "Insufficient available funds." :
+                kind == MoneyOperationKind.Deposit && balance.Total + amount + 9 * balance.Held > Money.MaxBalance ? "Balance limit exceeded." : null;
+            if (error is null) wallet.Total += kind == MoneyOperationKind.Deposit ? amount : -amount;
             var result = new Operation(error is null ? OperationStatus.Completed : OperationStatus.Rejected, BalanceOf(wallet), error);
             db.AddOperation(new OperationEntity
             {

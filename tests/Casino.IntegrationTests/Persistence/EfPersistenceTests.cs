@@ -1,3 +1,4 @@
+using Casino.Wallet.Persistence.Enums;
 using Casino.IntegrationTests.Hosting;
 using Casino.Game.Persistence.Implementation;
 using Casino.Game.Rounds;
@@ -40,16 +41,16 @@ public sealed class EfPersistenceTests : IDisposable
         var store = new WalletStore(WalletConnectionString, 15);
         var player = Guid.NewGuid();
         await store.Create(player);
-        await store.Change(new(player, Guid.NewGuid(), 10), "deposit");
+        await store.Change(new(player, Guid.NewGuid(), 10), MoneyOperationKind.Deposit);
         Execute(WalletConnectionString, "CREATE FUNCTION reject_wallet_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected storage failure'; END; $$; CREATE TRIGGER reject_wallet_update BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE FUNCTION reject_wallet_update();");
         var request = new MoneyRequest(player, Guid.NewGuid(), 5);
-        await Assert.ThrowsAsync<DbUpdateException>(() => store.Change(request, "withdraw"));
+        await Assert.ThrowsAsync<DbUpdateException>(() => store.Change(request, MoneyOperationKind.Withdraw));
         Assert.Equal(new Balance(10m, 0), await store.Get(player));
         using (var db = new WalletDbContext(WalletConnectionString, 15))
             Assert.False(db.Operations.Any(o => o.Request == request.RequestId.ToString()));
         Execute(WalletConnectionString, "DROP TRIGGER reject_wallet_update ON wallets;");
-        Assert.Equal(new Balance(5m, 0), (await store.Change(request, "withdraw")).Balance);
-        Assert.Equal(new Balance(5m, 0), (await store.Change(request, "withdraw")).Balance);
+        Assert.Equal(new Balance(5m, 0), (await store.Change(request, MoneyOperationKind.Withdraw)).Balance);
+        Assert.Equal(new Balance(5m, 0), (await store.Change(request, MoneyOperationKind.Withdraw)).Balance);
     }
 
     [Fact]
@@ -59,7 +60,7 @@ public sealed class EfPersistenceTests : IDisposable
         var request = new MoneyRequest(player, Guid.NewGuid(), 5.01m);
         var wallet = new WalletStore(WalletConnectionString, 15);
         await wallet.Create(player);
-        await wallet.Change(new(player, Guid.NewGuid(), 10.02m), "deposit");
+        await wallet.Change(new(player, Guid.NewGuid(), 10.02m), MoneyOperationKind.Deposit);
         var game = new GameStore(GameConnectionString, 15);
         var round = await game.GetOrCreate(request);
         await wallet.Reserve(new(player, round.Id, request.Amount));

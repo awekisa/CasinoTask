@@ -38,9 +38,9 @@ public sealed class WalletStoreTests
     }
 
     [Theory]
-    [InlineData("deposit", "10.15")]
-    [InlineData("withdraw", "9.85")]
-    public async Task MoneyChangesAreExactAndReplaysDoNotApplyAgain(string kind, string expected)
+    [InlineData(MoneyOperationKind.Deposit, "10.15")]
+    [InlineData(MoneyOperationKind.Withdraw, "9.85")]
+    public async Task MoneyChangesAreExactAndReplaysDoNotApplyAgain(MoneyOperationKind kind, string expected)
     {
         var request = new MoneyRequest(playerId, Guid.NewGuid(), 0.15m);
         var result = await Store.Change(request, kind);
@@ -54,7 +54,7 @@ public sealed class WalletStoreTests
     public async Task HeldMoneyCannotBeWithdrawn()
     {
         account.Held = 8m;
-        var result = await Store.Change(new(playerId, Guid.NewGuid(), 3m), "withdraw");
+        var result = await Store.Change(new(playerId, Guid.NewGuid(), 3m), MoneyOperationKind.Withdraw);
         Assert.Equal(OperationStatus.Rejected, result.Status);
         Assert.Equal(new Balance(10m, 8m), result.Balance);
         Assert.Equal(10m, account.Total);
@@ -64,8 +64,8 @@ public sealed class WalletStoreTests
     public async Task IdempotencyKeyCannotBeReusedWithDifferentAmount()
     {
         var request = new MoneyRequest(playerId, Guid.NewGuid(), 1m);
-        await Store.Change(request, "deposit");
-        Assert.Equal(409, (await Assert.ThrowsAsync<DomainException>(() => Store.Change(request with { Amount = 2m }, "deposit"))).Status);
+        await Store.Change(request, MoneyOperationKind.Deposit);
+        Assert.Equal(409, (await Assert.ThrowsAsync<DomainException>(() => Store.Change(request with { Amount = 2m }, MoneyOperationKind.Deposit))).Status);
         Assert.Equal(11m, account.Total);
         session.Verify(s => s.AddOperation(It.IsAny<OperationEntity>()), Times.Once);
     }
@@ -117,7 +117,7 @@ public sealed class WalletStoreTests
     public async Task DepositPreservesHeadroomForHeldBets()
     {
         account.Held = 5m;
-        var result = await Store.Change(new(playerId, Guid.NewGuid(), Money.MaxBalance - 10m), "deposit");
+        var result = await Store.Change(new(playerId, Guid.NewGuid(), Money.MaxBalance - 10m), MoneyOperationKind.Deposit);
         Assert.Equal(OperationStatus.Rejected, result.Status);
         Assert.Equal(10m, account.Total);
     }
@@ -125,7 +125,7 @@ public sealed class WalletStoreTests
     [Fact]
     public async Task InvalidAmountIsRejectedBeforeCallingDatabase()
     {
-        await Assert.ThrowsAsync<DomainException>(() => Store.Change(new(playerId, Guid.NewGuid(), 0.001m), "deposit"));
+        await Assert.ThrowsAsync<DomainException>(() => Store.Change(new(playerId, Guid.NewGuid(), 0.001m), MoneyOperationKind.Deposit));
         database.VerifyNoOtherCalls();
         session.VerifyNoOtherCalls();
     }

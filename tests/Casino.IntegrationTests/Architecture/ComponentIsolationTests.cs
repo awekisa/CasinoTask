@@ -1,3 +1,4 @@
+using Casino.Wallet.Persistence.Enums;
 using Casino.IntegrationTests.Hosting;
 using Casino.Game.Persistence.Implementation;
 using Casino.Contracts.Wallet.Requests;
@@ -41,7 +42,7 @@ public sealed class ComponentIsolationTests
             var game = new GameStore(gamePath, 15);
             var playerId = Guid.NewGuid();
             await wallet.Create(playerId);
-            await wallet.Change(new(playerId, Guid.NewGuid(), 10m), "deposit");
+            await wallet.Change(new(playerId, Guid.NewGuid(), 10m), MoneyOperationKind.Deposit);
             await game.GetOrCreate(new(playerId, Guid.NewGuid(), 2m));
             Assert.Equal(10m, (await wallet.Get(playerId)).Available);
             Assert.Equal(new[] { "operations", "reservations", "wallets" }, ReadTables(walletPath));

@@ -23,7 +23,7 @@ public sealed class WalletDbContext(string connectionString, int timeoutSeconds)
         operations.HasKey(e => new { e.Player, e.Request });
         operations.Property(e => e.Player).HasColumnName("player");
         operations.Property(e => e.Request).HasColumnName("request");
-        operations.Property(e => e.Kind).HasColumnName("kind");
+        operations.Property(e => e.Kind).HasColumnName("kind").HasConversion<string>();
         operations.Property(e => e.Amount).HasColumnName("amount").HasPrecision(18, 2);
         operations.Property(e => e.Result).HasColumnName("result");
         var reservations = model.Entity<ReservationEntity>();

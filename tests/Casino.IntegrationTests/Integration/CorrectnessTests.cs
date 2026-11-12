@@ -1,3 +1,4 @@
+using Casino.Wallet.Persistence.Enums;
 using Casino.IntegrationTests.Hosting;
 using Casino.Game.Persistence.Implementation;
 using Casino.Game.Rounds;
@@ -26,7 +27,7 @@ public sealed class CorrectnessTests : IDisposable
     {
         var wallet = new WalletStore(WalletConnectionString, 15);
         await wallet.Create(player);
-        await wallet.Change(new(player, Guid.NewGuid(), amount), "deposit");
+        await wallet.Change(new(player, Guid.NewGuid(), amount), MoneyOperationKind.Deposit);
         return wallet;
     }
 
@@ -40,10 +41,10 @@ public sealed class CorrectnessTests : IDisposable
     {
         var wallet = await Fund(0.10m);
         var deposit = new MoneyRequest(player, Guid.NewGuid(), 1.20m);
-        var deposited = await wallet.Change(deposit, "deposit");
+        var deposited = await wallet.Change(deposit, MoneyOperationKind.Deposit);
         Assert.Equal(new Balance(1.30m, 0m), deposited.Balance);
         wallet = new WalletStore(WalletConnectionString, 15);
-        Assert.Equal(deposited, await wallet.Change(deposit, "deposit"));
+        Assert.Equal(deposited, await wallet.Change(deposit, MoneyOperationKind.Deposit));
         var request = new MoneyRequest(player, Guid.NewGuid(), 1.01m);
         var engine = new GameEngine(new GameStore(GameConnectionString, 15), new FaultWallet(wallet), new FixedOutcome(0.02m));
         var result = await engine.Place(request);
@@ -60,7 +61,7 @@ public sealed class CorrectnessTests : IDisposable
     {
         var wallet = new WalletStore(WalletConnectionString, 15);
         Assert.Equal(new Balance(0, 0), await wallet.Create(player));
-        await wallet.Change(new(player, Guid.NewGuid(), 10), "deposit");
+        await wallet.Change(new(player, Guid.NewGuid(), 10), MoneyOperationKind.Deposit);
         Assert.Equal(10.0m, (await wallet.Create(player)).Total);
         Assert.Equal(10.0m, (await new WalletStore(WalletConnectionString, 15).Get(player)).Total);
     }
@@ -70,7 +71,7 @@ public sealed class CorrectnessTests : IDisposable
     {
         var wallet = await Fund();
         foreach (var amount in new[] { 0m, -1m, 1.001m, decimal.MaxValue })
-            await Assert.ThrowsAsync<DomainException>(() => wallet.Change(new(player, Guid.NewGuid(), amount), "withdraw"));
+            await Assert.ThrowsAsync<DomainException>(() => wallet.Change(new(player, Guid.NewGuid(), amount), MoneyOperationKind.Withdraw));
         await Assert.ThrowsAsync<DomainException>(() => wallet.Create(Guid.Empty));
         Assert.Equal(new Balance(10.0m, 0), await wallet.Get(player));
     }
@@ -80,7 +81,7 @@ public sealed class CorrectnessTests : IDisposable
     {
         var wallet = await Fund();
         var results = await Task.WhenAll(Enumerable.Range(0, 20).Select(i => i % 2 == 0
-            ? wallet.Change(new(player, Guid.NewGuid(), 1), "withdraw")
+            ? wallet.Change(new(player, Guid.NewGuid(), 1), MoneyOperationKind.Withdraw)
             : wallet.Reserve(new(player, Guid.NewGuid(), 1m))));
         Assert.Equal(10, results.Count(x => x.Status != OperationStatus.Rejected));
         var balance = await wallet.Get(player);
@@ -94,13 +95,13 @@ public sealed class CorrectnessTests : IDisposable
     {
         var wallet = await Fund();
         var request = new MoneyRequest(player, Guid.NewGuid(), 1);
-        var results = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => wallet.Change(request, "withdraw")));
+        var results = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => wallet.Change(request, MoneyOperationKind.Withdraw)));
         Assert.All(results, x => Assert.Equal(results[0], x));
         Assert.Equal(9.0m, (await wallet.Get(player)).Total);
-        Assert.Equal(409, (await Assert.ThrowsAsync<DomainException>(() => wallet.Change(request with { Amount = 2 }, "withdraw"))).Status);
-        await Assert.ThrowsAsync<DomainException>(() => wallet.Change(request, "deposit"));
+        Assert.Equal(409, (await Assert.ThrowsAsync<DomainException>(() => wallet.Change(request with { Amount = 2 }, MoneyOperationKind.Withdraw))).Status);
+        await Assert.ThrowsAsync<DomainException>(() => wallet.Change(request, MoneyOperationKind.Deposit));
         var deposit = request with { RequestId = Guid.NewGuid() };
-        await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => wallet.Change(deposit, "deposit")));
+        await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => wallet.Change(deposit, MoneyOperationKind.Deposit)));
         Assert.Equal(10.0m, (await wallet.Get(player)).Total);
     }
 
@@ -126,10 +127,10 @@ public sealed class CorrectnessTests : IDisposable
         var wallet = await Fund(1);
         var withdraw = new MoneyRequest(player, Guid.NewGuid(), 5);
         var reserve = new ReserveRequest(player, Guid.NewGuid(), 5.0m);
-        Assert.Equal(OperationStatus.Rejected, (await wallet.Change(withdraw, "withdraw")).Status);
+        Assert.Equal(OperationStatus.Rejected, (await wallet.Change(withdraw, MoneyOperationKind.Withdraw)).Status);
         Assert.Equal(OperationStatus.Rejected, (await wallet.Reserve(reserve)).Status);
-        await wallet.Change(new(player, Guid.NewGuid(), 10), "deposit");
-        Assert.Equal(OperationStatus.Rejected, (await wallet.Change(withdraw, "withdraw")).Status);
+        await wallet.Change(new(player, Guid.NewGuid(), 10), MoneyOperationKind.Deposit);
+        Assert.Equal(OperationStatus.Rejected, (await wallet.Change(withdraw, MoneyOperationKind.Withdraw)).Status);
         Assert.Equal(OperationStatus.Rejected, (await wallet.Reserve(reserve)).Status);
         await Assert.ThrowsAsync<DomainException>(() => wallet.Settle(new(reserve.RoundId, 0)));
         Assert.Equal(new Balance(11.0m, 0), await wallet.Get(player));
@@ -209,7 +210,7 @@ public sealed class CorrectnessTests : IDisposable
         var request = new MoneyRequest(player, Guid.NewGuid(), 5);
         var round = await engine.Place(request);
         Assert.Equal(new Balance(13.5m, 0), round.Balance);
-        Assert.Equal(new Balance(0, 0), (await wallet.Change(new(player, Guid.NewGuid(), 13.5m), "withdraw")).Balance);
+        Assert.Equal(new Balance(0, 0), (await wallet.Change(new(player, Guid.NewGuid(), 13.5m), MoneyOperationKind.Withdraw)).Balance);
         Assert.Equal(new Balance(13.5m, 0), (await engine.Place(request)).Balance);
         Assert.Equal(new Balance(0, 0), await wallet.Get(player));
     }
@@ -224,7 +225,7 @@ public sealed class CorrectnessTests : IDisposable
         await Assert.ThrowsAsync<DomainException>(() => wallet.Settle(new(id, -1)));
         await Assert.ThrowsAsync<DomainException>(() => wallet.Settle(new(id, 50.01m)));
         Assert.Equal(new Balance(10.0m, 5.0m), await wallet.Get(player));
-        Assert.Equal(OperationStatus.Rejected, (await wallet.Change(new(player, Guid.NewGuid(), Money.MaxBalance - 10), "deposit")).Status);
+        Assert.Equal(OperationStatus.Rejected, (await wallet.Change(new(player, Guid.NewGuid(), Money.MaxBalance - 10), MoneyOperationKind.Deposit)).Status);
         await wallet.Settle(new(id, 50.0m));
         Assert.Equal(new Balance(55.0m, 0), await wallet.Get(player));
     }
