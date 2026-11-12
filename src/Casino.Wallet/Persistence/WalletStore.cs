@@ -37,7 +37,7 @@ public sealed class WalletStore
             var wallet = await db.FindWallet(player, ct);
             if (wallet is null)
             {
-                wallet = new WalletEntity { Player = player.ToString() };
+                wallet = new WalletEntity { Player = player };
                 db.AddWallet(wallet);
             }
             return BalanceOf(wallet);
@@ -71,8 +71,8 @@ public sealed class WalletStore
             var result = new Operation(error is null ? OperationStatus.Completed : OperationStatus.Rejected, BalanceOf(wallet), error);
             db.AddOperation(new OperationEntity
             {
-                Player = request.PlayerId.ToString(),
-                Request = request.RequestId.ToString(),
+                Player = request.PlayerId,
+                Request = request.RequestId,
                 Kind = kind,
                 Amount = amount,
                 Result = JsonSerializer.Serialize(result)
@@ -91,7 +91,7 @@ public sealed class WalletStore
             var previous = await db.FindReservation(request.RoundId, ct);
             if (previous is not null)
             {
-                if (previous.Player != request.PlayerId.ToString() || previous.Stake != request.Stake) throw new DomainException("Round reused with different data.", 409);
+                if (previous.Player != request.PlayerId || previous.Stake != request.Stake) throw new DomainException("Round reused with different data.", 409);
                 return Decode(previous.Result);
             }
             var wallet = await db.FindWallet(request.PlayerId, ct);
@@ -107,8 +107,8 @@ public sealed class WalletStore
             var result = new Operation(error is null ? OperationStatus.Held : OperationStatus.Rejected, balance, error);
             db.AddReservation(new ReservationEntity
             {
-                Round = request.RoundId.ToString(),
-                Player = request.PlayerId.ToString(),
+                Round = request.RoundId,
+                Player = request.PlayerId,
                 Stake = request.Stake,
                 Status = error is null ? ReservationStatus.Held : ReservationStatus.Rejected,
                 Result = JsonSerializer.Serialize(result)
@@ -127,7 +127,7 @@ public sealed class WalletStore
             if (reservation.Payout != request.Payout) throw new DomainException("Settlement payout mismatch.", 409);
             return Decode(reservation.Result);
         }
-        var wallet = await Find(db, Guid.Parse(reservation.Player), ct);
+        var wallet = await Find(db, reservation.Player, ct);
         wallet.Total += request.Payout - reservation.Stake;
         wallet.Held -= reservation.Stake;
         var result = new Operation(OperationStatus.Settled, BalanceOf(wallet));

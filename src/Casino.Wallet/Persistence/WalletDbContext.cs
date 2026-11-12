@@ -15,7 +15,7 @@ public sealed class WalletDbContext(string connectionString, int timeoutSeconds)
         var wallets = model.Entity<WalletEntity>();
         wallets.ToTable("wallets", table => { table.HasCheckConstraint("CK_wallets_total", "total >= 0"); table.HasCheckConstraint("CK_wallets_held", "held >= 0 AND held <= total"); });
         wallets.HasKey(e => e.Player);
-        wallets.Property(e => e.Player).HasColumnName("player");
+        wallets.Property(e => e.Player).HasColumnName("player").ValueGeneratedNever();
         wallets.Property(e => e.Total).HasColumnName("total").HasPrecision(18, 2);
         wallets.Property(e => e.Held).HasColumnName("held").HasPrecision(18, 2);
         var operations = model.Entity<OperationEntity>();
@@ -29,7 +29,7 @@ public sealed class WalletDbContext(string connectionString, int timeoutSeconds)
         var reservations = model.Entity<ReservationEntity>();
         reservations.ToTable("reservations");
         reservations.HasKey(e => e.Round);
-        reservations.Property(e => e.Round).HasColumnName("round");
+        reservations.Property(e => e.Round).HasColumnName("round").ValueGeneratedNever();
         reservations.Property(e => e.Player).HasColumnName("player");
         reservations.Property(e => e.Stake).HasColumnName("stake").HasPrecision(18, 2);
         reservations.Property(e => e.Status).HasColumnName("status").HasConversion<string>();

@@ -13,7 +13,7 @@ public sealed class GameDbContext(string connectionString, int timeoutSeconds) :
         var rounds = model.Entity<RoundEntity>();
         rounds.ToTable("rounds");
         rounds.HasKey(e => e.Id);
-        rounds.Property(e => e.Id).HasColumnName("id");
+        rounds.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
         rounds.Property(e => e.Player).HasColumnName("player");
         rounds.Property(e => e.Request).HasColumnName("request");
         rounds.Property(e => e.Stake).HasColumnName("stake").HasPrecision(18, 2);

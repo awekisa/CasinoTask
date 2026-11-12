@@ -23,7 +23,7 @@ public sealed class WalletStoreTests
 
     public WalletStoreTests()
     {
-        account = new WalletEntity { Player = playerId.ToString(), Total = 10m };
+        account = new WalletEntity { Player = playerId, Total = 10m };
         session.Setup(s => s.FindWallet(playerId, default)).ReturnsAsync(account);
         session.Setup(s => s.FindOperation(playerId, It.IsAny<Guid>(), default)).ReturnsAsync(() => operation);
         session.Setup(s => s.FindReservation(It.IsAny<Guid>(), default)).ReturnsAsync(() => reservation);

@@ -47,7 +47,7 @@ public sealed class EfPersistenceTests : IDisposable
         await Assert.ThrowsAsync<DbUpdateException>(() => store.Change(request, MoneyOperationKind.Withdraw));
         Assert.Equal(new Balance(10m, 0), await store.Get(player));
         using (var db = new WalletDbContext(WalletConnectionString, 15))
-            Assert.False(db.Operations.Any(o => o.Request == request.RequestId.ToString()));
+            Assert.False(db.Operations.Any(o => o.Request == request.RequestId));
         Execute(WalletConnectionString, "DROP TRIGGER reject_wallet_update ON wallets;");
         Assert.Equal(new Balance(5m, 0), (await store.Change(request, MoneyOperationKind.Withdraw)).Balance);
         Assert.Equal(new Balance(5m, 0), (await store.Change(request, MoneyOperationKind.Withdraw)).Balance);
@@ -88,8 +88,31 @@ public sealed class EfPersistenceTests : IDisposable
         var request = new MoneyRequest(player, Guid.NewGuid(), 1);
         await game.GetOrCreate(request);
         using var context = new GameDbContext(GameConnectionString, 15);
-        context.Rounds.Add(new RoundEntity { Id = Guid.NewGuid().ToString(), Player = player.ToString(), Request = request.RequestId.ToString(), Stake = 1m });
+        context.Rounds.Add(new RoundEntity { Id = Guid.NewGuid(), Player = player, Request = request.RequestId, Stake = 1m });
         Assert.Throws<DbUpdateException>(() => context.SaveChanges());
+
+        foreach (var (connectionString, expectedColumns) in new[]
+        {
+            (WalletConnectionString, new[] { "operations.player:uuid", "operations.request:uuid", "reservations.player:uuid", "reservations.round:uuid", "wallets.player:uuid" }),
+            (GameConnectionString, new[] { "rounds.id:uuid", "rounds.player:uuid", "rounds.request:uuid" })
+        })
+        {
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT table_name || '.' || column_name || ':' || data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name IN ('wallets', 'operations', 'reservations', 'rounds')
+                    AND column_name IN ('id', 'player', 'request', 'round')
+                ORDER BY table_name, column_name
+                """;
+            await using var reader = await command.ExecuteReaderAsync();
+            var columns = new List<string>();
+            while (await reader.ReadAsync()) columns.Add(reader.GetString(0));
+            Assert.Equal(expectedColumns, columns);
+        }
     }
 
     public void Dispose()
