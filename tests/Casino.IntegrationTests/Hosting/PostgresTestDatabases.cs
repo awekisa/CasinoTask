@@ -18,7 +18,11 @@ public sealed class PostgresTestDatabases : IDisposable
             Wallet = Create("wallet");
             Game = Create("game");
         }
-        catch { Dispose(); throw; }
+        catch
+        {
+            Dispose();
+            throw;
+        }
     }
 
     private string Create(string service)

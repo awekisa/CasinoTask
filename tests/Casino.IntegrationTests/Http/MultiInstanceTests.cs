@@ -27,7 +27,11 @@ public sealed class MultiInstanceTests : IAsyncLifetime
             wallets = await Task.WhenAll(Start("Wallet"), Start("Wallet"));
             games = await Task.WhenAll(Start("Game", wallets[0].Client.BaseAddress), Start("Game", wallets[1].Client.BaseAddress));
         }
-        catch { await DisposeAsync(); throw; }
+        catch
+        {
+            await DisposeAsync();
+            throw;
+        }
     }
 
     private async Task<RunningService> Start(string component, Uri? walletAddress = null, Uri? address = null)

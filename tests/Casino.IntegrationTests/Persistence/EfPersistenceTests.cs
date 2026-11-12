@@ -29,7 +29,8 @@ public sealed class EfPersistenceTests : IDisposable
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = sql;
-        for (var i = 0; i < args.Length; i++) command.Parameters.AddWithValue("@p" + i, args[i]);
+        for (var i = 0; i < args.Length; i++)
+            command.Parameters.AddWithValue("@p" + i, args[i]);
         command.ExecuteNonQuery();
     }
 

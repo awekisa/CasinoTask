@@ -62,7 +62,11 @@ public sealed class RunningService : IAsyncDisposable
                 if (addresses.Count == expectedListeners) listening.TrySetResult(addresses.ToArray());
             }
         };
-        process.ErrorDataReceived += (_, args) => { if (args.Data is { } line) logs.Enqueue(line); };
+        process.ErrorDataReceived += (_, args) =>
+        {
+            if (args.Data is { } line)
+                logs.Enqueue(line);
+        };
         try
         {
             process.Start();

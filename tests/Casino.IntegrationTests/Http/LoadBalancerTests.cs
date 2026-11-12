@@ -36,14 +36,22 @@ public sealed class LoadBalancerTests : IAsyncLifetime
                 foreach (var listener in listeners) listener.Start();
                 addresses = listeners.Select(listener => new Uri($"http://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}/")).ToArray();
             }
-            finally { foreach (var listener in listeners) listener.Stop(); }
+            finally
+            {
+                foreach (var listener in listeners)
+                    listener.Stop();
+            }
             wallets = [await Start("Wallet", addresses[0]), await Start("Wallet", addresses[1])];
             games = [await Start("Game", addresses[2]), await Start("Game", addresses[3])];
             proxy = await StartProxy();
             wallet = new HttpClient { BaseAddress = addresses[4], Timeout = TimeSpan.FromSeconds(15) };
             game = new HttpClient { BaseAddress = addresses[5], Timeout = TimeSpan.FromSeconds(15) };
         }
-        catch { await DisposeAsync(); throw; }
+        catch
+        {
+            await DisposeAsync();
+            throw;
+        }
     }
 
     private async Task<RunningService> Start(string component, Uri address, IReadOnlyDictionary<string, string>? configuration = null)
@@ -103,7 +111,8 @@ public sealed class LoadBalancerTests : IAsyncLifetime
         var player = await CreatePlayer();
         var deposit = new MoneyRequest(player, Guid.NewGuid(), 10m);
         var first = await Post<Operation>(wallet, "deposits", deposit);
-        for (var i = 0; i < 4; i++) Assert.Equal(first, await Post<Operation>(wallet, "deposits", deposit));
+        for (var i = 0; i < 4; i++)
+            Assert.Equal(first, await Post<Operation>(wallet, "deposits", deposit));
         var copies = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => Post<Operation>(wallet, "deposits", deposit)));
         Assert.All(copies, result => Assert.Equal(first, result));
         using var depositConflict = await wallet.PostAsJsonAsync("deposits", deposit with { Amount = 11m });
@@ -118,7 +127,8 @@ public sealed class LoadBalancerTests : IAsyncLifetime
             settled = await Post<Round>(game, "bets", bet);
             return settled.State == RoundState.Settled;
         });
-        for (var i = 0; i < 4; i++) Assert.Equal(settled, await Post<Round>(game, "bets", bet));
+        for (var i = 0; i < 4; i++)
+            Assert.Equal(settled, await Post<Round>(game, "bets", bet));
         using var betConflict = await game.PostAsJsonAsync("bets", bet with { Amount = 3m });
         Assert.Equal(HttpStatusCode.Conflict, betConflict.StatusCode);
         using var walletDb = new WalletDbContext(databases.Wallet, 15);
@@ -166,7 +176,10 @@ public sealed class LoadBalancerTests : IAsyncLifetime
             });
             await games[0].DisposeAsync();
         }
-        finally { await transaction.RollbackAsync(); }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
         await Task.WhenAll(submissions);
 
         await Eventually(async () => await AllAnsweredBy(game, addresses[3]), TimeSpan.FromSeconds(10));

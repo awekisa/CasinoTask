@@ -26,14 +26,19 @@ public sealed class WalletGameHttpTests : IAsyncLifetime
             wallet = await RunningService.Start("Wallet", WalletConnectionString);
             game = await RunningService.Start("Game", GameConnectionString, wallet.Client.BaseAddress);
         }
-        catch { await DisposeAsync(); throw; }
+        catch
+        {
+            await DisposeAsync();
+            throw;
+        }
     }
 
     [Fact]
     public async Task RealServicesPersistReplayAndRecoverAfterOutageAndRestart()
     {
         var playerId = Guid.NewGuid();
-        using (var created = await wallet!.Client.PutAsync($"wallets/{playerId}", null)) created.EnsureSuccessStatusCode();
+        using (var created = await wallet!.Client.PutAsync($"wallets/{playerId}", null))
+            created.EnsureSuccessStatusCode();
         var deposit = new MoneyRequest(playerId, Guid.NewGuid(), 10.25m);
         var funded = await Post<Operation>(wallet!.Client, "deposits", deposit);
         Assert.Equal(new Balance(10.25m, 0), funded.Balance);
@@ -78,7 +83,8 @@ public sealed class WalletGameHttpTests : IAsyncLifetime
     public async Task ConcurrentHttpWithdrawalsCannotOverspend()
     {
         var playerId = Guid.NewGuid();
-        using (var created = await wallet!.Client.PutAsync($"wallets/{playerId}", null)) created.EnsureSuccessStatusCode();
+        using (var created = await wallet!.Client.PutAsync($"wallets/{playerId}", null))
+            created.EnsureSuccessStatusCode();
         await Post<Operation>(wallet!.Client, "deposits", new MoneyRequest(playerId, Guid.NewGuid(), 10m));
         var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ =>
             Post<Operation>(wallet.Client, "withdrawals", new MoneyRequest(playerId, Guid.NewGuid(), 5m))));
@@ -96,8 +102,16 @@ public sealed class WalletGameHttpTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        if (game is not null) { await game.DisposeAsync(); game = null; }
-        if (wallet is not null) { await wallet.DisposeAsync(); wallet = null; }
+        if (game is not null)
+        {
+            await game.DisposeAsync();
+            game = null;
+        }
+        if (wallet is not null)
+        {
+            await wallet.DisposeAsync();
+            wallet = null;
+        }
         databases.Dispose();
     }
 }
