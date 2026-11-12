@@ -1,0 +1,13 @@
+bin/
+obj/
+.player.json
+.pending.json
+TestResults/
+.vs/
+.player.json*
+
+__pycache__/
+*.pyc
+
+.demo/
+*.user

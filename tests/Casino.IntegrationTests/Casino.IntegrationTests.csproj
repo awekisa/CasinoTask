@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Casino.Game/Casino.Game.csproj" />
+    <ProjectReference Include="../../src/Casino.Wallet/Casino.Wallet.csproj" />
+    <ProjectReference Include="../../src/Casino.LoadBalancer/Casino.LoadBalancer.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/Casino.Web/Casino.Web.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <Target Name="CopyServiceOutputs" AfterTargets="Build">
+    <ItemGroup>
+      <WalletOutput Include="../../src/Casino.Wallet/bin/$(Configuration)/$(TargetFramework)/**/*" />
+      <LoadBalancerOutput Include="../../src/Casino.LoadBalancer/bin/$(Configuration)/$(TargetFramework)/**/*" />
+      <WebOutput Include="../../src/Casino.Web/bin/$(Configuration)/$(TargetFramework)/**/*" />
+      <GameOutput Include="../../src/Casino.Game/bin/$(Configuration)/$(TargetFramework)/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WalletOutput)" DestinationFiles="@(WalletOutput->'$(OutDir)Services/Wallet/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(LoadBalancerOutput)" DestinationFiles="@(LoadBalancerOutput->'$(OutDir)Services/LoadBalancer/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(WebOutput)" DestinationFiles="@(WebOutput->'$(OutDir)Services/Web/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(GameOutput)" DestinationFiles="@(GameOutput->'$(OutDir)Services/Game/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>
